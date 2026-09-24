@@ -1,0 +1,183 @@
+cmd.add({"tfly","tweenfly"},{"tfly [speed] (tweenfly)","Enables smooth flying"},function(...)
+    const arg=(...) or nil
+    flyVariables.TflySpeed=tonumber(arg) or flyVariables.TflySpeed or 1
+    NAmanage.connectTFlyKey()
+    NAmanage.activateFlightModeFromCommand("tfly")
+    if not IsOnMobile then
+        Wait()
+        DebugNotif("TFly enabled. Press '"..string.upper(flyVariables.tflyToggleKey).."' to tfly/untfly.")
+    end
+end,true)
+
+cmd.add({"untfly","untweenfly"},{"untfly","Disables tween flying"},function()
+    NAmanage.deactivateMode("tfly")
+end)
+
+NAmanage.sFLY=function(vfly,cfly,tfly,tpfly)
+    while not getChar() or not getRoot(getChar()) or not getHum() do Wait() end
+    CONTROL={Q=0,E=0}; lCONTROL={Q=0,E=0}; SPEED=0
+    const hum=getHum(); const head=getHead(getChar()); const root=getRoot(getChar())
+    NAmanage._captureFlyHumanoidState(hum)
+    if NAmanage.IsFlyVelocityClampDisabled() then
+        if type(NAmanage.ClearVelocityWalkSpeedClampState) == "function" then
+            NAmanage.ClearVelocityWalkSpeedClampState()
+        end
+    elseif type(NAmanage.EnsureVelocityWalkSpeedClampLoop) == "function" then
+        NAmanage.EnsureVelocityWalkSpeedClampLoop()
+    end
+    NAmanage._bindQE()
+    if tfly then
+        goofyFLY=goofyFLY or InstanceNew("Part",Services.Workspace)
+        NAmanage.configureFlyHelper(goofyFLY)
+        if not goofyFLY:FindFirstChildOfClass("Weld") then
+            const w=InstanceNew("Weld",goofyFLY) w.Part0=goofyFLY w.Part1=root w.C0=CFrame.new()
+        end
+        flyVariables.TFpos=flyVariables.TFpos or InstanceNew("BodyPosition",goofyFLY)
+        flyVariables.TFgyro=flyVariables.TFgyro or InstanceNew("BodyGyro",goofyFLY)
+        flyVariables.TFpos.maxForce=Vector3.new(math.huge,math.huge,math.huge)
+        flyVariables.TFpos.position=goofyFLY.Position
+        const cam0=NAmanage._camera()
+        flyVariables.TFgyro.maxTorque=Vector3.new(9e9,9e9,9e9)
+        flyVariables.TFgyro.cframe=cam0 and cam0.CFrame or CFrame.new()
+        if CFloop then pcall(function() CFloop:Disconnect() end) end
+        CFloop=nil
+        if not flyVariables._tflyLoop then
+            flyVariables._tflyLoop=true
+            SpawnCall(function()
+                while NAmanage._state.mode=="tfly" do
+                    const cam=NAmanage._camera()
+                    if cam and FLYING and flyVariables.TFpos and flyVariables.TFgyro then
+                        const currentChar=getChar()
+                        const currentHum=getHum(currentChar)
+                        const currentRoot=currentChar and getRoot(currentChar)
+                        const sp=tonumber(flyVariables.TflySpeed) or 1
+                        const moveDirection=NAmanage.GetFlyMoveDirection(cam, 1)
+                        local np=flyVariables.TFgyro.cframe-flyVariables.TFgyro.cframe.p+flyVariables.TFpos.position
+                        if moveDirection.Magnitude>0 then
+                            np=np+(moveDirection*sp)
+                        end
+                        pcall(function()
+                            flyVariables.TFpos.position=np.p
+                            flyVariables.TFgyro.cframe=cam.CFrame
+                        end)
+                        if currentRoot and currentHum then
+                            NAmanage.SetFlyVelocityClampState(currentRoot, currentHum, Vector3.new(1,1,1))
+                        end
+                    else
+                        NAmanage.ClearVelocityWalkSpeedClampState()
+                    end
+                    Wait()
+                end
+                NAmanage.ClearVelocityWalkSpeedClampState()
+                flyVariables._tflyLoop=false
+            end)
+        end
+    elseif tpfly then
+        goofyFLY=goofyFLY or InstanceNew("Part",Services.Workspace)
+        NAmanage.configureFlyHelper(goofyFLY)
+        if not goofyFLY:FindFirstChildOfClass("Weld") then
+            const w=InstanceNew("Weld",goofyFLY) w.Part0=goofyFLY w.Part1=root w.C0=CFrame.new()
+        end
+        flyVariables.BG=flyVariables.BG or InstanceNew("BodyGyro",goofyFLY)
+        flyVariables.BG.P=9e4
+        flyVariables.BG.maxTorque=Vector3.new(0,9e9,0)
+        flyVariables.BV=flyVariables.BV or InstanceNew("BodyVelocity",goofyFLY)
+        flyVariables.BV.velocity=Vector3.zero
+        flyVariables.BV.maxForce=Vector3.new(9e9,9e9,9e9)
+        if CFloop then pcall(function() CFloop:Disconnect() end) end
+        CFloop=nil
+    elseif cfly then
+        goofyFLY=goofyFLY or InstanceNew("Part",Services.Workspace)
+        NAmanage.configureFlyHelper(goofyFLY)
+        goofyFLY.Anchored=true
+        const cflyTarget=NAmanage._getCFlyTarget(getChar())
+        if cflyTarget then
+            NAmanage._trackFlyAnchor(cflyTarget)
+            cflyTarget.Anchored=true
+        end
+        if type(NAmanage.CFlyStartVisualizer) == "function" then
+            NAmanage.CFlyStartVisualizer(cflyTarget, false)
+        end
+        if CFloop then pcall(function() CFloop:Disconnect() end) end
+        NAlib.disconnect("fly_cfly_loop")
+        CFloop=NAlib.reconnect("fly_cfly_loop", Services.RunService.RenderStepped:Connect(function()
+            if NAmanage._state.mode~="cfly" or not FLYING then return end
+            const currentChar=getChar()
+            const currentTarget=NAmanage._getCFlyTarget(currentChar)
+            if not currentTarget then return end
+            const cam=NAmanage._camera(); if not cam then return end
+            const vertical=(CONTROL.E+CONTROL.Q)
+            const md=NAmanage.GetCFlyMoveDirection(cam)+(cam.CFrame.UpVector*vertical)
+            if md.Magnitude>0 then
+                const ns=currentTarget.Position+md.Unit*(tonumber(flyVariables.cFlySpeed) or 1)
+                const lk=ns+cam.CFrame.LookVector
+                currentTarget.CFrame=CFrame.new(ns,lk)
+                goofyFLY.CFrame=currentTarget.CFrame
+            end
+            if type(NAmanage.CFlyUpdateVisualizer) == "function" then
+                NAmanage.CFlyUpdateVisualizer(false)
+            end
+        end))
+    else
+        goofyFLY=goofyFLY or InstanceNew("Part",Services.Workspace)
+        NAmanage.configureFlyHelper(goofyFLY)
+        if not goofyFLY:FindFirstChildOfClass("Weld") then
+            const w=InstanceNew("Weld",goofyFLY) w.Part0=goofyFLY w.Part1=root w.C0=CFrame.new()
+        end
+        flyVariables.BG=flyVariables.BG or InstanceNew("BodyGyro",goofyFLY)
+        flyVariables.BG.P=9e4
+        flyVariables.BG.maxTorque=Vector3.new(9e9,9e9,9e9)
+        flyVariables.BV=flyVariables.BV or InstanceNew("BodyVelocity",goofyFLY)
+        flyVariables.BV.velocity=Vector3.zero
+        flyVariables.BV.maxForce=Vector3.new(9e9,9e9,9e9)
+        if NAmanage._state.mode=="fly" then if hum then hum.PlatformStand=true end else if hum then hum.PlatformStand=false end end
+        if CFloop then pcall(function() CFloop:Disconnect() end) end
+        if not flyVariables._stdLoop then
+            flyVariables._stdLoop=true
+            SpawnCall(function()
+                while (NAmanage._state.mode=="fly" or NAmanage._state.mode=="vfly") do
+                    const cam=NAmanage._camera()
+                    if cam and FLYING and flyVariables.BV and flyVariables.BG then
+                        const currentChar=getChar()
+                        const currentHum=getHum(currentChar)
+                        const currentRoot=currentChar and getRoot(currentChar)
+                        const moveDirection=NAmanage.GetFlyMoveDirection(cam, 0.2)
+                        const has=moveDirection.Magnitude>0
+                        if has then
+                            SPEED=((NAmanage._state.mode=="vfly" and tonumber(flyVariables.vFlySpeed) or tonumber(flyVariables.flySpeed)) or 1)*50
+                        elseif SPEED~=0 then
+                            SPEED=0
+                        end
+                        if has then
+                            flyVariables.BV.velocity=moveDirection*SPEED
+                            lCONTROL={Q=CONTROL.Q,E=CONTROL.E}
+                            if currentRoot and currentHum then
+                                NAmanage.SetFlyVelocityClampState(currentRoot, currentHum, Vector3.new(1,1,1))
+                            end
+                        elseif SPEED~=0 then
+                            const lastVertical=(tonumber((lCONTROL and lCONTROL.Q or 0)+(lCONTROL and lCONTROL.E or 0)) or 0)*0.2
+                            flyVariables.BV.velocity=cam.CFrame.UpVector*lastVertical*SPEED
+                            if currentRoot and currentHum then
+                                NAmanage.SetFlyVelocityClampState(currentRoot, currentHum, Vector3.new(1,1,1))
+                            end
+                        else
+                            flyVariables.BV.velocity=Vector3.zero
+                            NAmanage.ClearVelocityWalkSpeedClampState()
+                        end
+                        flyVariables.BG.cframe=cam.CFrame
+                    elseif flyVariables.BV then
+                        flyVariables.BV.velocity=Vector3.zero
+                        NAmanage.ClearVelocityWalkSpeedClampState()
+                    end
+                    Wait()
+                end
+                NAmanage.ClearVelocityWalkSpeedClampState()
+                if flyVariables.BG then pcall(function() flyVariables.BG:Destroy() end) end
+                if flyVariables.BV then pcall(function() flyVariables.BV:Destroy() end) end
+                flyVariables.BG=nil; flyVariables.BV=nil
+                flyVariables._stdLoop=false
+            end)
+        end
+    end
+    FLYING=true
+end
