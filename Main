@@ -13,8 +13,7 @@ end
 _G.ReqiumZCloneController = true
 
 local SETTINGS = {
-    speedOne = 40,
-    speedTwo = 80,
+    speed = 40,
     gravity = 196.2,
     moveDistance = 8,
     maxJoystickRadius = 55,
@@ -26,7 +25,7 @@ local state = {
     touchDir = Vector3.zero,
     activeTouch = nil,
     enabled = true,
-    speedMode = 1,
+    activeFeature = "Temp",
     infiniteJump = false,
     originalGravity = workspace.Gravity,
 }
@@ -39,13 +38,6 @@ end
 
 local function getMoveDirection()
     return state.touchDir + state.keyboardDir
-end
-
-local function getActiveSpeed()
-    if state.speedMode == 2 then
-        return SETTINGS.speedTwo
-    end
-    return SETTINGS.speedOne
 end
 
 local function getCharacterRoot(character)
@@ -103,7 +95,7 @@ local function buildClone()
 
     local cloneHumanoid = clone:FindFirstChildOfClass("Humanoid")
     if cloneHumanoid then
-        cloneHumanoid.WalkSpeed = getActiveSpeed()
+        cloneHumanoid.WalkSpeed = SETTINGS.speed
         cloneHumanoid.JumpPower = 0
         cloneHumanoid.JumpHeight = 0
         cloneHumanoid.AutoRotate = true
@@ -137,7 +129,7 @@ local function applyActiveSpeed()
     if state.clone then
         local humanoid = state.clone:FindFirstChildOfClass("Humanoid")
         if humanoid then
-            humanoid.WalkSpeed = getActiveSpeed()
+            humanoid.WalkSpeed = SETTINGS.speed
         end
     end
 end
@@ -288,13 +280,11 @@ addHoverAnimation(minimizeButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(58,
 addHoverAnimation(closeButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(180, 70, 80))
 addHoverAnimation(openButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(58, 66, 82))
 
-local speedOneButton = makeButton("SpeedOne", "Speed 1: 40", UDim2.new(0, 12, 0, 62))
-local speedTwoButton = makeButton("SpeedTwo", "Speed 2: 80", UDim2.new(0, 171, 0, 62))
-local gravityButton = makeButton("Gravity", "Gravity: 196.2", UDim2.new(0, 12, 0, 126))
-local infiniteJumpButton = makeButton("InfJump", "InfJump: OFF", UDim2.new(0, 171, 0, 126))
+local tpWalkButton = makeButton("TPWalk", "TPWalk: OFF", UDim2.new(0, 12, 0, 62))
+local tweenFlyButton = makeButton("TweenFly", "TweenFly: OFF", UDim2.new(0, 171, 0, 62))
+local gravityButton = makeButton("Gravity", "Gravity: 196.2", UDim2.new(0, 12, 0, 158))
+local infiniteJumpButton = makeButton("InfJump", "InfJump: OFF", UDim2.new(0, 171, 0, 158))
 
-addHoverAnimation(speedOneButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(58, 66, 82))
-addHoverAnimation(speedTwoButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(58, 66, 82))
 addHoverAnimation(gravityButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(58, 66, 82))
 
 local function makeConfigBox(name, placeholder, text, position)
@@ -316,9 +306,9 @@ local function makeConfigBox(name, placeholder, text, position)
     return box
 end
 
-local speedOneBox = makeConfigBox("SpeedOneConfig", "Speed 1 value", tostring(SETTINGS.speedOne), UDim2.new(0, 12, 0, 94))
-local speedTwoBox = makeConfigBox("SpeedTwoConfig", "Speed 2 value", tostring(SETTINGS.speedTwo), UDim2.new(0, 171, 0, 94))
-local gravityBox = makeConfigBox("GravityConfig", "Gravity value", tostring(SETTINGS.gravity), UDim2.new(0, 12, 0, 158))
+local speedBox = makeConfigBox("SpeedConfig", "Clone speed", tostring(SETTINGS.speed), UDim2.new(0, 12, 0, 94))
+speedBox.Size = UDim2.new(0, 296, 0, 26)
+local gravityBox = makeConfigBox("GravityConfig", "Gravity value", tostring(SETTINGS.gravity), UDim2.new(0, 12, 0, 126))
 
 local base = Instance.new("Frame")
 base.Name = "JoystickBase"
@@ -403,35 +393,43 @@ local function updateTouchDirection(inputPosition)
     end
 end
 
-local function setEnabled(enabled)
-    state.enabled = enabled
-    if enabled then
-        workspace.Gravity = SETTINGS.gravity
-        buildClone()
-    else
+local function activateFeature(featureName)
+    if state.activeFeature == featureName then
+        state.activeFeature = nil
+        state.enabled = false
         removeClone()
         workspace.Gravity = state.originalGravity
+        return
     end
-    activateButton.BackgroundColor3 = enabled and Color3.fromRGB(71, 166, 255) or Color3.fromRGB(55, 60, 70)
+
+    state.activeFeature = featureName
+    state.enabled = true
+    workspace.Gravity = SETTINGS.gravity
+    if not state.clone or not state.clone.Parent then
+        buildClone()
+    else
+        applyActiveSpeed()
+    end
 end
 
 local function refreshControls()
-    speedOneButton.Text = "Speed 1: " .. tostring(SETTINGS.speedOne)
-    speedTwoButton.Text = "Speed 2: " .. tostring(SETTINGS.speedTwo)
+    activateButton.BackgroundColor3 = state.activeFeature == "Temp" and Color3.fromRGB(71, 166, 255) or Color3.fromRGB(55, 60, 70)
+    tpWalkButton.Text = state.activeFeature == "TPWalk" and "TPWalk: ON" or "TPWalk: OFF"
+    tweenFlyButton.Text = state.activeFeature == "TweenFly" and "TweenFly: ON" or "TweenFly: OFF"
+    tpWalkButton.BackgroundColor3 = state.activeFeature == "TPWalk" and Color3.fromRGB(45, 155, 110) or Color3.fromRGB(38, 43, 54)
+    tweenFlyButton.BackgroundColor3 = state.activeFeature == "TweenFly" and Color3.fromRGB(45, 155, 110) or Color3.fromRGB(38, 43, 54)
     gravityButton.Text = "Gravity: " .. tostring(SETTINGS.gravity)
     infiniteJumpButton.Text = state.infiniteJump and "InfJump: ON" or "InfJump: OFF"
     infiniteJumpButton.BackgroundColor3 = state.infiniteJump and Color3.fromRGB(45, 155, 110) or Color3.fromRGB(38, 43, 54)
 end
 
-speedOneButton.MouseButton1Click:Connect(function()
-    state.speedMode = 1
-    applyActiveSpeed()
+tpWalkButton.MouseButton1Click:Connect(function()
+    activateFeature("TPWalk")
     refreshControls()
 end)
 
-speedTwoButton.MouseButton1Click:Connect(function()
-    state.speedMode = 2
-    applyActiveSpeed()
+tweenFlyButton.MouseButton1Click:Connect(function()
+    activateFeature("TweenFly")
     refreshControls()
 end)
 
@@ -446,30 +444,14 @@ infiniteJumpButton.MouseButton1Click:Connect(function()
     refreshControls()
 end)
 
-speedOneBox.FocusLost:Connect(function()
-    local value = tonumber(speedOneBox.Text)
+speedBox.FocusLost:Connect(function()
+    local value = tonumber(speedBox.Text)
     if value then
-        SETTINGS.speedOne = math.clamp(value, 1, 250)
-        speedOneBox.Text = tostring(SETTINGS.speedOne)
-        if state.speedMode == 1 then
-            applyActiveSpeed()
-        end
+        SETTINGS.speed = math.clamp(value, 1, 250)
+        speedBox.Text = tostring(SETTINGS.speed)
+        applyActiveSpeed()
     else
-        speedOneBox.Text = tostring(SETTINGS.speedOne)
-    end
-    refreshControls()
-end)
-
-speedTwoBox.FocusLost:Connect(function()
-    local value = tonumber(speedTwoBox.Text)
-    if value then
-        SETTINGS.speedTwo = math.clamp(value, 1, 250)
-        speedTwoBox.Text = tostring(SETTINGS.speedTwo)
-        if state.speedMode == 2 then
-            applyActiveSpeed()
-        end
-    else
-        speedTwoBox.Text = tostring(SETTINGS.speedTwo)
+        speedBox.Text = tostring(SETTINGS.speed)
     end
     refreshControls()
 end)
@@ -488,7 +470,8 @@ task.defer(function()
 end)
 
 activateButton.MouseButton1Click:Connect(function()
-    setEnabled(not state.enabled)
+    activateFeature("Temp")
+    refreshControls()
 end)
 
 base.InputBegan:Connect(function(input)
@@ -574,7 +557,7 @@ UserInputService.InputEnded:Connect(function(input)
     updateKeyboardDirection()
 end)
 
-RunService.Heartbeat:Connect(function()
+RunService.Heartbeat:Connect(function(deltaTime)
     if not state.enabled then
         return
     end
@@ -589,6 +572,8 @@ RunService.Heartbeat:Connect(function()
     if not root or not humanoid or humanoid.Health <= 0 then
         return
     end
+
+    humanoid.PlatformStand = state.activeFeature == "TweenFly"
 
     local moveDir = getMoveDirection()
     if moveDir.Magnitude > 0.1 then
@@ -607,6 +592,20 @@ RunService.Heartbeat:Connect(function()
             local worldDir = (look * -moveDir.Z + right * moveDir.X)
             if worldDir.Magnitude > 0 then
                 worldDir = worldDir.Unit
+            end
+
+            if state.activeFeature == "TPWalk" then
+                clone:TranslateBy(worldDir * SETTINGS.speed * math.min(deltaTime, 0.1))
+                return
+            end
+
+            if state.activeFeature == "TweenFly" then
+                local currentPivot = clone:GetPivot()
+                local targetPosition = root.Position + worldDir * SETTINGS.speed * math.min(deltaTime, 0.1)
+                local targetPivot = CFrame.lookAt(targetPosition, targetPosition + worldDir)
+                local alpha = math.clamp(deltaTime * 12, 0, 1)
+                clone:PivotTo(currentPivot:Lerp(targetPivot, alpha))
+                return
             end
 
             humanoid:MoveTo(root.Position + worldDir * SETTINGS.moveDistance)
