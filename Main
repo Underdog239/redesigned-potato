@@ -12,7 +12,9 @@ end
 _G.ReqiumZCloneController = true
 
 local SETTINGS = {
-    speed = 40,
+    speedOne = 40,
+    speedTwo = 80,
+    gravity = 196.2,
     moveDistance = 8,
     maxJoystickRadius = 55,
 }
@@ -23,6 +25,9 @@ local state = {
     touchDir = Vector3.zero,
     activeTouch = nil,
     enabled = true,
+    speedMode = 1,
+    infiniteJump = false,
+    originalGravity = workspace.Gravity,
 }
 
 local function destroyIfExists(instance)
@@ -33,6 +38,13 @@ end
 
 local function getMoveDirection()
     return state.touchDir + state.keyboardDir
+end
+
+local function getActiveSpeed()
+    if state.speedMode == 2 then
+        return SETTINGS.speedTwo
+    end
+    return SETTINGS.speedOne
 end
 
 local function getCharacterRoot(character)
@@ -78,7 +90,7 @@ local function buildClone()
 
     local cloneHumanoid = clone:FindFirstChildOfClass("Humanoid")
     if cloneHumanoid then
-        cloneHumanoid.WalkSpeed = SETTINGS.speed
+        cloneHumanoid.WalkSpeed = getActiveSpeed()
         cloneHumanoid.JumpPower = 0
         cloneHumanoid.JumpHeight = 0
         cloneHumanoid.AutoRotate = true
@@ -97,6 +109,26 @@ local function removeClone()
     state.clone = nil
 end
 
+local function setGravity(value)
+    local gravity = tonumber(value)
+    if not gravity then
+        return false
+    end
+
+    SETTINGS.gravity = math.clamp(gravity, 0, 500)
+    workspace.Gravity = SETTINGS.gravity
+    return true
+end
+
+local function applyActiveSpeed()
+    if state.clone then
+        local humanoid = state.clone:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = getActiveSpeed()
+        end
+    end
+end
+
 local existingGui = playerGui:FindFirstChild("ReqiumZ v1")
 if existingGui then
     destroyIfExists(existingGui)
@@ -111,8 +143,8 @@ gui.Parent = playerGui
 
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
-panel.Size = UDim2.new(0, 360, 0, 96)
-panel.Position = UDim2.new(0.5, -180, 0, 18)
+panel.Size = UDim2.new(0, 420, 0, 280)
+panel.Position = UDim2.new(0.5, -210, 0, 18)
 panel.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 panel.BackgroundTransparency = 0.08
 panel.BorderSizePixel = 0
@@ -129,7 +161,7 @@ panelGradient.Parent = panel
 
 local title = Instance.new("TextLabel")
 title.Name = "Title"
-title.Size = UDim2.new(0, 210, 0, 28)
+title.Size = UDim2.new(0, 250, 0, 28)
 title.Position = UDim2.new(0, 18, 0, 22)
 title.BackgroundTransparency = 1
 title.Text = "ReqiumZ v1"
@@ -141,7 +173,7 @@ title.Parent = panel
 
 local subtitle = Instance.new("TextLabel")
 subtitle.Name = "Subtitle"
-subtitle.Size = UDim2.new(0, 210, 0, 18)
+subtitle.Size = UDim2.new(0, 250, 0, 18)
 subtitle.Position = UDim2.new(0, 18, 0, 52)
 subtitle.BackgroundTransparency = 1
 subtitle.Text = "clone control"
@@ -170,6 +202,51 @@ buttonGlow.Color = Color3.fromRGB(140, 210, 255)
 buttonGlow.Thickness = 1.2
 buttonGlow.Transparency = 0.2
 buttonGlow.Parent = activateButton
+
+local function makeButton(name, text, position)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Text = text
+    button.Size = UDim2.new(0, 176, 0, 36)
+    button.Position = position
+    button.BackgroundColor3 = Color3.fromRGB(38, 43, 54)
+    button.TextColor3 = Color3.fromRGB(235, 240, 250)
+    button.Font = Enum.Font.GothamMedium
+    button.TextSize = 14
+    button.AutoButtonColor = false
+    button.BorderSizePixel = 0
+    button.Parent = panel
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 9)
+    return button
+end
+
+local speedOneButton = makeButton("SpeedOne", "Speed 1: 40", UDim2.new(0, 18, 0, 104))
+local speedTwoButton = makeButton("SpeedTwo", "Speed 2: 80", UDim2.new(0, 208, 0, 104))
+local gravityButton = makeButton("Gravity", "Gravity: 196.2", UDim2.new(0, 18, 0, 148))
+local infiniteJumpButton = makeButton("InfJump", "InfJump: OFF", UDim2.new(0, 208, 0, 148))
+
+local function makeConfigBox(name, placeholder, text, position)
+    local box = Instance.new("TextBox")
+    box.Name = name
+    box.PlaceholderText = placeholder
+    box.Text = text
+    box.Size = UDim2.new(0, 176, 0, 32)
+    box.Position = position
+    box.BackgroundColor3 = Color3.fromRGB(25, 29, 37)
+    box.TextColor3 = Color3.fromRGB(235, 240, 250)
+    box.PlaceholderColor3 = Color3.fromRGB(125, 135, 155)
+    box.Font = Enum.Font.Gotham
+    box.TextSize = 13
+    box.ClearTextOnFocus = false
+    box.BorderSizePixel = 0
+    box.Parent = panel
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+    return box
+end
+
+local speedOneBox = makeConfigBox("SpeedOneConfig", "Speed 1 value", tostring(SETTINGS.speedOne), UDim2.new(0, 18, 0, 194))
+local speedTwoBox = makeConfigBox("SpeedTwoConfig", "Speed 2 value", tostring(SETTINGS.speedTwo), UDim2.new(0, 208, 0, 194))
+local gravityBox = makeConfigBox("GravityConfig", "Gravity value", tostring(SETTINGS.gravity), UDim2.new(0, 18, 0, 232))
 
 local base = Instance.new("Frame")
 base.Name = "JoystickBase"
@@ -225,11 +302,81 @@ end
 local function setEnabled(enabled)
     state.enabled = enabled
     if enabled then
+        workspace.Gravity = SETTINGS.gravity
         buildClone()
     else
         removeClone()
+        workspace.Gravity = state.originalGravity
     end
+    activateButton.BackgroundColor3 = enabled and Color3.fromRGB(71, 166, 255) or Color3.fromRGB(55, 60, 70)
 end
+
+local function refreshControls()
+    speedOneButton.Text = "Speed 1: " .. tostring(SETTINGS.speedOne)
+    speedTwoButton.Text = "Speed 2: " .. tostring(SETTINGS.speedTwo)
+    gravityButton.Text = "Gravity: " .. tostring(SETTINGS.gravity)
+    infiniteJumpButton.Text = state.infiniteJump and "InfJump: ON" or "InfJump: OFF"
+    infiniteJumpButton.BackgroundColor3 = state.infiniteJump and Color3.fromRGB(45, 155, 110) or Color3.fromRGB(38, 43, 54)
+end
+
+speedOneButton.MouseButton1Click:Connect(function()
+    state.speedMode = 1
+    applyActiveSpeed()
+    refreshControls()
+end)
+
+speedTwoButton.MouseButton1Click:Connect(function()
+    state.speedMode = 2
+    applyActiveSpeed()
+    refreshControls()
+end)
+
+gravityButton.MouseButton1Click:Connect(function()
+    setGravity(gravityBox.Text)
+    gravityBox.Text = tostring(SETTINGS.gravity)
+    refreshControls()
+end)
+
+infiniteJumpButton.MouseButton1Click:Connect(function()
+    state.infiniteJump = not state.infiniteJump
+    refreshControls()
+end)
+
+speedOneBox.FocusLost:Connect(function()
+    local value = tonumber(speedOneBox.Text)
+    if value then
+        SETTINGS.speedOne = math.clamp(value, 1, 250)
+        speedOneBox.Text = tostring(SETTINGS.speedOne)
+        if state.speedMode == 1 then
+            applyActiveSpeed()
+        end
+    else
+        speedOneBox.Text = tostring(SETTINGS.speedOne)
+    end
+    refreshControls()
+end)
+
+speedTwoBox.FocusLost:Connect(function()
+    local value = tonumber(speedTwoBox.Text)
+    if value then
+        SETTINGS.speedTwo = math.clamp(value, 1, 250)
+        speedTwoBox.Text = tostring(SETTINGS.speedTwo)
+        if state.speedMode == 2 then
+            applyActiveSpeed()
+        end
+    else
+        speedTwoBox.Text = tostring(SETTINGS.speedTwo)
+    end
+    refreshControls()
+end)
+
+gravityBox.FocusLost:Connect(function()
+    setGravity(gravityBox.Text)
+    gravityBox.Text = tostring(SETTINGS.gravity)
+    refreshControls()
+end)
+
+refreshControls()
 
 activateButton.MouseButton1Click:Connect(function()
     setEnabled(not state.enabled)
@@ -277,6 +424,14 @@ end
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then
         return
+    end
+
+    if input.KeyCode == Enum.KeyCode.Space and state.infiniteJump and state.enabled then
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
     end
 
     if input.KeyCode == Enum.KeyCode.I then
