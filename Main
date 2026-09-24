@@ -143,8 +143,8 @@ gui.Parent = playerGui
 
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
-panel.Size = UDim2.new(0, 420, 0, 280)
-panel.Position = UDim2.new(0.5, -210, 0, 18)
+panel.Size = UDim2.new(0, 320, 0, 194)
+panel.Position = UDim2.new(1, -332, 0, 12)
 panel.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 panel.BackgroundTransparency = 0.08
 panel.BorderSizePixel = 0
@@ -161,45 +161,45 @@ panelGradient.Parent = panel
 
 local title = Instance.new("TextLabel")
 title.Name = "Title"
-title.Size = UDim2.new(0, 250, 0, 28)
-title.Position = UDim2.new(0, 18, 0, 22)
+title.Size = UDim2.new(0, 170, 0, 24)
+title.Position = UDim2.new(0, 14, 0, 14)
 title.BackgroundTransparency = 1
 title.Text = "ReqiumZ v1"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Font = Enum.Font.GothamBold
-title.TextSize = 20
+title.TextSize = 16
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = panel
 
 local subtitle = Instance.new("TextLabel")
 subtitle.Name = "Subtitle"
-subtitle.Size = UDim2.new(0, 250, 0, 18)
-subtitle.Position = UDim2.new(0, 18, 0, 52)
+subtitle.Size = UDim2.new(0, 170, 0, 16)
+subtitle.Position = UDim2.new(0, 14, 0, 36)
 subtitle.BackgroundTransparency = 1
 subtitle.Text = "clone control"
 subtitle.TextColor3 = Color3.fromRGB(150, 165, 200)
 subtitle.Font = Enum.Font.Gotham
-subtitle.TextSize = 12
+subtitle.TextSize = 10
 subtitle.TextXAlignment = Enum.TextXAlignment.Left
 subtitle.Parent = panel
 
 local activateButton = Instance.new("TextButton")
 activateButton.Name = "Temp"
 activateButton.Text = "Temp"
-activateButton.Size = UDim2.new(0, 118, 0, 42)
-activateButton.Position = UDim2.new(1, -136, 0.5, -21)
+activateButton.Size = UDim2.new(0, 74, 0, 30)
+activateButton.Position = UDim2.new(1, -88, 0, 16)
 activateButton.BackgroundColor3 = Color3.fromRGB(71, 166, 255)
 activateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 activateButton.Font = Enum.Font.GothamBold
-activateButton.TextSize = 18
+activateButton.TextSize = 13
 activateButton.AutoButtonColor = false
 activateButton.BorderSizePixel = 0
 activateButton.Parent = panel
-Instance.new("UICorner", activateButton).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", activateButton).CornerRadius = UDim.new(0, 8)
 
 local buttonGlow = Instance.new("UIStroke")
 buttonGlow.Color = Color3.fromRGB(140, 210, 255)
-buttonGlow.Thickness = 1.2
+buttonGlow.Thickness = 1
 buttonGlow.Transparency = 0.2
 buttonGlow.Parent = activateButton
 
@@ -207,46 +207,46 @@ local function makeButton(name, text, position)
     local button = Instance.new("TextButton")
     button.Name = name
     button.Text = text
-    button.Size = UDim2.new(0, 176, 0, 36)
+    button.Size = UDim2.new(0, 137, 0, 28)
     button.Position = position
     button.BackgroundColor3 = Color3.fromRGB(38, 43, 54)
     button.TextColor3 = Color3.fromRGB(235, 240, 250)
     button.Font = Enum.Font.GothamMedium
-    button.TextSize = 14
+    button.TextSize = 11
     button.AutoButtonColor = false
     button.BorderSizePixel = 0
     button.Parent = panel
-    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 9)
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 7)
     return button
 end
 
-local speedOneButton = makeButton("SpeedOne", "Speed 1: 40", UDim2.new(0, 18, 0, 104))
-local speedTwoButton = makeButton("SpeedTwo", "Speed 2: 80", UDim2.new(0, 208, 0, 104))
-local gravityButton = makeButton("Gravity", "Gravity: 196.2", UDim2.new(0, 18, 0, 148))
-local infiniteJumpButton = makeButton("InfJump", "InfJump: OFF", UDim2.new(0, 208, 0, 148))
+local speedOneButton = makeButton("SpeedOne", "Speed 1: 40", UDim2.new(0, 12, 0, 62))
+local speedTwoButton = makeButton("SpeedTwo", "Speed 2: 80", UDim2.new(0, 171, 0, 62))
+local gravityButton = makeButton("Gravity", "Gravity: 196.2", UDim2.new(0, 12, 0, 126))
+local infiniteJumpButton = makeButton("InfJump", "InfJump: OFF", UDim2.new(0, 171, 0, 126))
 
 local function makeConfigBox(name, placeholder, text, position)
     local box = Instance.new("TextBox")
     box.Name = name
     box.PlaceholderText = placeholder
     box.Text = text
-    box.Size = UDim2.new(0, 176, 0, 32)
+    box.Size = UDim2.new(0, 137, 0, 26)
     box.Position = position
     box.BackgroundColor3 = Color3.fromRGB(25, 29, 37)
     box.TextColor3 = Color3.fromRGB(235, 240, 250)
     box.PlaceholderColor3 = Color3.fromRGB(125, 135, 155)
     box.Font = Enum.Font.Gotham
-    box.TextSize = 13
+    box.TextSize = 11
     box.ClearTextOnFocus = false
     box.BorderSizePixel = 0
     box.Parent = panel
-    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 7)
     return box
 end
 
-local speedOneBox = makeConfigBox("SpeedOneConfig", "Speed 1 value", tostring(SETTINGS.speedOne), UDim2.new(0, 18, 0, 194))
-local speedTwoBox = makeConfigBox("SpeedTwoConfig", "Speed 2 value", tostring(SETTINGS.speedTwo), UDim2.new(0, 208, 0, 194))
-local gravityBox = makeConfigBox("GravityConfig", "Gravity value", tostring(SETTINGS.gravity), UDim2.new(0, 18, 0, 232))
+local speedOneBox = makeConfigBox("SpeedOneConfig", "Speed 1 value", tostring(SETTINGS.speedOne), UDim2.new(0, 12, 0, 94))
+local speedTwoBox = makeConfigBox("SpeedTwoConfig", "Speed 2 value", tostring(SETTINGS.speedTwo), UDim2.new(0, 171, 0, 94))
+local gravityBox = makeConfigBox("GravityConfig", "Gravity value", tostring(SETTINGS.gravity), UDim2.new(0, 12, 0, 158))
 
 local base = Instance.new("Frame")
 base.Name = "JoystickBase"
