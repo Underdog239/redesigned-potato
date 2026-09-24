@@ -7,9 +7,16 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-if _G.ReqiumZCloneController and playerGui:FindFirstChild("ReqiumZ v1") then
-    return
+local previousGui = playerGui:FindFirstChild("ReqiumZ v1")
+if previousGui then
+    previousGui:Destroy()
 end
+
+local previousClone = workspace:FindFirstChild("ReqiumZ_Clone")
+if previousClone then
+    previousClone:Destroy()
+end
+
 _G.ReqiumZCloneController = true
 
 local SETTINGS = {
@@ -617,8 +624,13 @@ RunService.Heartbeat:Connect(function(deltaTime)
 end)
 
 player.CharacterAdded:Connect(function()
+    removeClone()
     task.wait(0.2)
     buildClone()
+end)
+
+player.CharacterRemoving:Connect(function()
+    removeClone()
 end)
 
 if player.Character then
