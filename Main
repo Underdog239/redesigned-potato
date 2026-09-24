@@ -2,177 +2,358 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
+local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-local SPEED = 40
-local clone = nil
-local moveDir = Vector3.zero
+if _G.ReqiumZCloneController then
+    return
+end
+_G.ReqiumZCloneController = true
 
--- ============================================================
--- BUILD THE CLONE (looks exactly like you)
--- ============================================================
+local SETTINGS = {
+    speed = 40,
+    moveDistance = 8,
+    maxJoystickRadius = 55,
+}
+
+local state = {
+    clone = nil,
+    keyboardDir = Vector3.zero,
+    touchDir = Vector3.zero,
+    activeTouch = nil,
+    enabled = true,
+}
+
+local function destroyIfExists(instance)
+    if instance and instance.Parent then
+        instance:Destroy()
+    end
+end
+
+local function getMoveDirection()
+    return state.touchDir + state.keyboardDir
+end
+
+local function getCharacterRoot(character)
+    if not character then
+        return nil
+    end
+    return character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
+end
+
 local function buildClone()
-    local char = player.Character
-    if not char or not char.PrimaryPart then return end
-    char:WaitForChild("Humanoid")
+    if not state.enabled then
+        return
+    end
 
-    if clone then clone:Destroy() end
+    local character = player.Character
+    if not character then
+        return
+    end
 
-    clone = char:Clone()
-    clone.Name = "LocalClone"
+    local root = getCharacterRoot(character)
+    if not root then
+        return
+    end
 
-    for _, d in ipairs(clone:GetDescendants()) do
-        if d:IsA("Script") or d:IsA("LocalScript") then
-            d:Destroy()
-        elseif d:IsA("BasePart") then
-            d.Anchored = false
-            d.CanCollide = false
-            d.Massless = true
+    local humanoid = character:WaitForChild("Humanoid")
+    if state.clone and state.clone.Parent then
+        state.clone:Destroy()
+    end
+
+    local clone = character:Clone()
+    clone.Name = "ReqiumZ_Clone"
+
+    for _, descendant in ipairs(clone:GetDescendants()) do
+        if descendant:IsA("Script") or descendant:IsA("LocalScript") or descendant:IsA("ModuleScript") then
+            descendant:Destroy()
+        elseif descendant:IsA("BasePart") then
+            descendant.Anchored = false
+            descendant.CanCollide = false
+            descendant.Massless = true
+            descendant.Transparency = math.max(descendant.Transparency, 0.2)
         end
     end
 
-    local h = clone:FindFirstChildOfClass("Humanoid")
-    if h then
-        h.WalkSpeed = SPEED
-        h.JumpPower = 0
-        h.JumpHeight = 0
-        h.AutoRotate = true
-        h.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+    local cloneHumanoid = clone:FindFirstChildOfClass("Humanoid")
+    if cloneHumanoid then
+        cloneHumanoid.WalkSpeed = SETTINGS.speed
+        cloneHumanoid.JumpPower = 0
+        cloneHumanoid.JumpHeight = 0
+        cloneHumanoid.AutoRotate = true
+        cloneHumanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
     end
 
-    clone:PivotTo(char.PrimaryPart.CFrame * CFrame.new(4, 0, 0))
+    clone:PivotTo(root.CFrame * CFrame.new(4, 0, 0))
     clone.Parent = workspace
+    state.clone = clone
 end
 
--- ============================================================
--- MOBILE UI: TOUCH JOYSTICK
--- ============================================================
+local function removeClone()
+    if state.clone and state.clone.Parent then
+        state.clone:Destroy()
+    end
+    state.clone = nil
+end
+
+local existingGui = playerGui:FindFirstChild("ReqiumZ v1")
+if existingGui then
+    destroyIfExists(existingGui)
+end
+
 local gui = Instance.new("ScreenGui")
-gui.Name = "CloneControls"
+gui.Name = "ReqiumZ v1"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
-gui.Parent = player:WaitForChild("PlayerGui")
+gui.DisplayOrder = 100
+gui.Parent = playerGui
+
+local panel = Instance.new("Frame")
+panel.Name = "Panel"
+panel.Size = UDim2.new(0, 360, 0, 96)
+panel.Position = UDim2.new(0.5, -180, 0, 18)
+panel.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+panel.BackgroundTransparency = 0.08
+panel.BorderSizePixel = 0
+panel.Parent = gui
+Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 18)
+
+local panelGradient = Instance.new("UIGradient")
+panelGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(22, 25, 32)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(11, 13, 18)),
+})
+panelGradient.Rotation = 90
+panelGradient.Parent = panel
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(0, 210, 0, 28)
+title.Position = UDim2.new(0, 18, 0, 22)
+title.BackgroundTransparency = 1
+title.Text = "ReqiumZ v1"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = panel
+
+local subtitle = Instance.new("TextLabel")
+subtitle.Name = "Subtitle"
+subtitle.Size = UDim2.new(0, 210, 0, 18)
+subtitle.Position = UDim2.new(0, 18, 0, 52)
+subtitle.BackgroundTransparency = 1
+subtitle.Text = "clone control"
+subtitle.TextColor3 = Color3.fromRGB(150, 165, 200)
+subtitle.Font = Enum.Font.Gotham
+subtitle.TextSize = 12
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.Parent = panel
+
+local activateButton = Instance.new("TextButton")
+activateButton.Name = "Temp"
+activateButton.Text = "Temp"
+activateButton.Size = UDim2.new(0, 118, 0, 42)
+activateButton.Position = UDim2.new(1, -136, 0.5, -21)
+activateButton.BackgroundColor3 = Color3.fromRGB(71, 166, 255)
+activateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+activateButton.Font = Enum.Font.GothamBold
+activateButton.TextSize = 18
+activateButton.AutoButtonColor = false
+activateButton.BorderSizePixel = 0
+activateButton.Parent = panel
+Instance.new("UICorner", activateButton).CornerRadius = UDim.new(0, 12)
+
+local buttonGlow = Instance.new("UIStroke")
+buttonGlow.Color = Color3.fromRGB(140, 210, 255)
+buttonGlow.Thickness = 1.2
+buttonGlow.Transparency = 0.2
+buttonGlow.Parent = activateButton
 
 local base = Instance.new("Frame")
 base.Name = "JoystickBase"
-base.Size = UDim2.fromOffset(160, 160)
-base.Position = UDim2.new(0, 30, 1, -190) -- bottom-left
-base.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-base.BackgroundTransparency = 0.6
+base.Size = UDim2.fromOffset(170, 170)
+base.Position = UDim2.new(0, 26, 1, -205)
+base.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+base.BackgroundTransparency = 0.48
 base.BorderSizePixel = 0
-base.Visible = false
+base.Visible = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 base.Parent = gui
 Instance.new("UICorner", base).CornerRadius = UDim.new(1, 0)
 
+local baseGlow = Instance.new("UIStroke")
+baseGlow.Color = Color3.fromRGB(100, 110, 140)
+baseGlow.Thickness = 1
+baseGlow.Transparency = 0.25
+baseGlow.Parent = base
+
 local knob = Instance.new("Frame")
 knob.Name = "Knob"
-knob.Size = UDim2.fromOffset(70, 70)
-knob.Position = UDim2.new(0.5, -35, 0.5, -35)
-knob.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
+knob.AnchorPoint = Vector2.new(0.5, 0.5)
+knob.Size = UDim2.fromOffset(68, 68)
+knob.Position = UDim2.new(0.5, 0, 0.5, 0)
+knob.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
 knob.BackgroundTransparency = 0.15
 knob.BorderSizePixel = 0
 knob.Parent = base
 Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 
--- Show joystick only on touch devices
-local isTouch = UIS.TouchEnabled and not UIS.KeyboardEnabled
-base.Visible = isTouch
+local function resetKnob()
+    knob.Position = UDim2.new(0.5, 0, 0.5, 0)
+    state.touchDir = Vector3.zero
+end
 
-local activeTouch = nil
-local baseCenter = Vector2.zero
-local maxRadius = 55
+local function updateTouchDirection(inputPosition)
+    local center = base.AbsolutePosition + (base.AbsoluteSize / 2)
+    local delta = Vector2.new(inputPosition.X - center.X, inputPosition.Y - center.Y)
+    local maxRadius = SETTINGS.maxJoystickRadius
 
-local function updateKnob(inputPos)
-    local delta = inputPos - baseCenter
     if delta.Magnitude > maxRadius then
         delta = delta.Unit * maxRadius
     end
-    knob.Position = UDim2.new(
-        0.5, delta.X - knob.AbsoluteSize.X / 2,
-        0.5, delta.Y - knob.AbsoluteSize.Y / 2
-    )
+
+    knob.Position = UDim2.new(0.5, delta.X, 0.5, delta.Y)
+
     if delta.Magnitude > 6 then
-        moveDir = Vector3.new(delta.X, 0, delta.Y) / maxRadius
+        state.touchDir = Vector3.new(delta.X, 0, delta.Y) / maxRadius
     else
-        moveDir = Vector3.zero
+        state.touchDir = Vector3.zero
     end
 end
 
-local function resetKnob()
-    knob.Position = UDim2.new(0.5, -35, 0.5, -35)
-    moveDir = Vector3.zero
+local function setEnabled(enabled)
+    state.enabled = enabled
+    if enabled then
+        buildClone()
+    else
+        removeClone()
+    end
 end
+
+activateButton.MouseButton1Click:Connect(function()
+    setEnabled(not state.enabled)
+end)
 
 base.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        activeTouch = input
-        baseCenter = base.AbsolutePosition + base.AbsoluteSize / 2
-        updateKnob(input.Position)
+    if input.UserInputType == Enum.UserInputType.Touch and state.enabled then
+        state.activeTouch = input
+        updateTouchDirection(input.Position)
     end
 end)
 
-UIS.InputChanged:Connect(function(input)
-    if input == activeTouch then
-        updateKnob(input.Position)
+UserInputService.InputChanged:Connect(function(input)
+    if input == state.activeTouch and state.enabled then
+        updateTouchDirection(input.Position)
     end
 end)
 
-UIS.InputEnded:Connect(function(input)
-    if input == activeTouch then
-        activeTouch = nil
+UserInputService.InputEnded:Connect(function(input)
+    if input == state.activeTouch then
+        state.activeTouch = nil
         resetKnob()
     end
 end)
 
--- ============================================================
--- DESKTOP FALLBACK (IJKL) — skip if you only want mobile
--- ============================================================
-UIS.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == Enum.KeyCode.I then moveDir += Vector3.new(0, 0, -1) end
-    if input.KeyCode == Enum.KeyCode.K then moveDir += Vector3.new(0, 0,  1) end
-    if input.KeyCode == Enum.KeyCode.J then moveDir += Vector3.new(-1, 0, 0) end
-    if input.KeyCode == Enum.KeyCode.L then moveDir += Vector3.new( 1, 0, 0) end
-end)
-UIS.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.I then moveDir -= Vector3.new(0, 0, -1) end
-    if input.KeyCode == Enum.KeyCode.K then moveDir -= Vector3.new(0, 0,  1) end
-    if input.KeyCode == Enum.KeyCode.J then moveDir -= Vector3.new(-1, 0, 0) end
-    if input.KeyCode == Enum.KeyCode.L then moveDir -= Vector3.new( 1, 0, 0) end
-end)
+local pressedKeys = {}
 
--- ============================================================
--- DRIVE THE CLONE VIA HUMANOID (animations + 40 speed)
--- ============================================================
-RunService.Heartbeat:Connect(function()
-    if not clone or not clone.PrimaryPart then return end
-    local h = clone:FindFirstChildOfClass("Humanoid")
-    if not h or h.Health <= 0 then return end
-
-    if moveDir.Magnitude > 0.1 then
-        -- Move relative to the camera so it feels natural on mobile
-        local cam = workspace.CurrentCamera
-        local camCF = cam.CFrame
-        local forward = Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z).Unit
-        local right   = Vector3.new(camCF.RightVector.X, 0, camCF.RightVector.Z).Unit
-        local worldDir = (forward * -moveDir.Z + right * moveDir.X)
-        if worldDir.Magnitude > 0 then
-            worldDir = worldDir.Unit
-        end
-
-        local target = clone.PrimaryPart.Position + worldDir * 8
-        h:MoveTo(target)
-    else
-        h:MoveTo(clone.PrimaryPart.Position)
+local function updateKeyboardDirection()
+    local direction = Vector3.zero
+    if pressedKeys.I then
+        direction += Vector3.new(0, 0, -1)
     end
+    if pressedKeys.K then
+        direction += Vector3.new(0, 0, 1)
+    end
+    if pressedKeys.J then
+        direction += Vector3.new(-1, 0, 0)
+    end
+    if pressedKeys.L then
+        direction += Vector3.new(1, 0, 0)
+    end
+    state.keyboardDir = direction
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then
+        return
+    end
+
+    if input.KeyCode == Enum.KeyCode.I then
+        pressedKeys.I = true
+    elseif input.KeyCode == Enum.KeyCode.K then
+        pressedKeys.K = true
+    elseif input.KeyCode == Enum.KeyCode.J then
+        pressedKeys.J = true
+    elseif input.KeyCode == Enum.KeyCode.L then
+        pressedKeys.L = true
+    end
+
+    updateKeyboardDirection()
 end)
 
--- ============================================================
--- RESPAWN HANDLING
--- ============================================================
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.I then
+        pressedKeys.I = nil
+    elseif input.KeyCode == Enum.KeyCode.K then
+        pressedKeys.K = nil
+    elseif input.KeyCode == Enum.KeyCode.J then
+        pressedKeys.J = nil
+    elseif input.KeyCode == Enum.KeyCode.L then
+        pressedKeys.L = nil
+    end
+
+    updateKeyboardDirection()
+end)
+
+RunService.Heartbeat:Connect(function()
+    if not state.enabled then
+        return
+    end
+
+    local clone = state.clone
+    if not clone then
+        return
+    end
+
+    local root = getCharacterRoot(clone)
+    local humanoid = clone:FindFirstChildOfClass("Humanoid")
+    if not root or not humanoid or humanoid.Health <= 0 then
+        return
+    end
+
+    local moveDir = getMoveDirection()
+    if moveDir.Magnitude > 0.1 then
+        local camera = workspace.CurrentCamera
+        if camera and camera.CFrame then
+            local look = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
+            local right = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
+
+            if look.Magnitude > 0 then
+                look = look.Unit
+            end
+            if right.Magnitude > 0 then
+                right = right.Unit
+            end
+
+            local worldDir = (look * -moveDir.Z + right * moveDir.X)
+            if worldDir.Magnitude > 0 then
+                worldDir = worldDir.Unit
+            end
+
+            humanoid:MoveTo(root.Position + worldDir * SETTINGS.moveDistance)
+            return
+        end
+    end
+
+    humanoid:MoveTo(root.Position)
+end)
+
 player.CharacterAdded:Connect(function()
     task.wait(0.2)
     buildClone()
 end)
-if player.Character then buildClone() end
+
+if player.Character then
+    task.defer(buildClone)
+end
