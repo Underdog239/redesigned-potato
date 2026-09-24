@@ -3,10 +3,11 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-if _G.ReqiumZCloneController then
+if _G.ReqiumZCloneController and playerGui:FindFirstChild("ReqiumZ v1") then
     return
 end
 _G.ReqiumZCloneController = true
@@ -69,12 +70,24 @@ local function buildClone()
         return
     end
 
-    local humanoid = character:WaitForChild("Humanoid")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then
+        return
+    end
+
     if state.clone and state.clone.Parent then
         state.clone:Destroy()
     end
 
-    local clone = character:Clone()
+    local wasArchivable = character.Archivable
+    character.Archivable = true
+    local cloneSuccess, clone = pcall(function()
+        return character:Clone()
+    end)
+    character.Archivable = wasArchivable
+    if not cloneSuccess or not clone then
+        return
+    end
     clone.Name = "ReqiumZ_Clone"
 
     for _, descendant in ipairs(clone:GetDescendants()) do
@@ -141,10 +154,15 @@ gui.IgnoreGuiInset = true
 gui.DisplayOrder = 100
 gui.Parent = playerGui
 
+local PANEL_POSITION = UDim2.new(1, -332, 0, 12)
+local PANEL_HIDDEN_POSITION = UDim2.new(1, 18, 0, 12)
+local FAST_TWEEN = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local PANEL_TWEEN = TweenInfo.new(0.32, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
 panel.Size = UDim2.new(0, 320, 0, 194)
-panel.Position = UDim2.new(1, -332, 0, 12)
+panel.Position = PANEL_HIDDEN_POSITION
 panel.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 panel.BackgroundTransparency = 0.08
 panel.BorderSizePixel = 0
@@ -187,7 +205,7 @@ local activateButton = Instance.new("TextButton")
 activateButton.Name = "Temp"
 activateButton.Text = "Temp"
 activateButton.Size = UDim2.new(0, 74, 0, 30)
-activateButton.Position = UDim2.new(1, -88, 0, 16)
+activateButton.Position = UDim2.new(1, -174, 0, 16)
 activateButton.BackgroundColor3 = Color3.fromRGB(71, 166, 255)
 activateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 activateButton.Font = Enum.Font.GothamBold
@@ -202,6 +220,41 @@ buttonGlow.Color = Color3.fromRGB(140, 210, 255)
 buttonGlow.Thickness = 1
 buttonGlow.Transparency = 0.2
 buttonGlow.Parent = activateButton
+
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Name = "Minimize"
+minimizeButton.Text = "-"
+minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+minimizeButton.Position = UDim2.new(1, -92, 0, 16)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(38, 43, 54)
+minimizeButton.TextColor3 = Color3.fromRGB(235, 240, 250)
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.TextSize = 18
+minimizeButton.AutoButtonColor = false
+minimizeButton.BorderSizePixel = 0
+minimizeButton.Parent = panel
+Instance.new("UICorner", minimizeButton).CornerRadius = UDim.new(0, 8)
+
+local closeButton = minimizeButton:Clone()
+closeButton.Name = "Close"
+closeButton.Text = "x"
+closeButton.Position = UDim2.new(1, -52, 0, 16)
+closeButton.Parent = panel
+
+local openButton = Instance.new("TextButton")
+openButton.Name = "Open"
+openButton.Text = "Open"
+openButton.Size = UDim2.new(0, 62, 0, 30)
+openButton.Position = UDim2.new(1, -74, 0.5, -15)
+openButton.BackgroundColor3 = Color3.fromRGB(38, 43, 54)
+openButton.TextColor3 = Color3.fromRGB(235, 240, 250)
+openButton.Font = Enum.Font.GothamMedium
+openButton.TextSize = 12
+openButton.AutoButtonColor = false
+openButton.BorderSizePixel = 0
+openButton.Visible = false
+openButton.Parent = gui
+Instance.new("UICorner", openButton).CornerRadius = UDim.new(0, 8)
 
 local function makeButton(name, text, position)
     local button = Instance.new("TextButton")
@@ -220,10 +273,29 @@ local function makeButton(name, text, position)
     return button
 end
 
+local function addHoverAnimation(button, normalColor, hoverColor)
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, FAST_TWEEN, {BackgroundColor3 = hoverColor}):Play()
+    end)
+
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, FAST_TWEEN, {BackgroundColor3 = normalColor}):Play()
+    end)
+end
+
+addHoverAnimation(activateButton, Color3.fromRGB(71, 166, 255), Color3.fromRGB(95, 183, 255))
+addHoverAnimation(minimizeButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(58, 66, 82))
+addHoverAnimation(closeButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(180, 70, 80))
+addHoverAnimation(openButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(58, 66, 82))
+
 local speedOneButton = makeButton("SpeedOne", "Speed 1: 40", UDim2.new(0, 12, 0, 62))
 local speedTwoButton = makeButton("SpeedTwo", "Speed 2: 80", UDim2.new(0, 171, 0, 62))
 local gravityButton = makeButton("Gravity", "Gravity: 196.2", UDim2.new(0, 12, 0, 126))
 local infiniteJumpButton = makeButton("InfJump", "InfJump: OFF", UDim2.new(0, 171, 0, 126))
+
+addHoverAnimation(speedOneButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(58, 66, 82))
+addHoverAnimation(speedTwoButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(58, 66, 82))
+addHoverAnimation(gravityButton, Color3.fromRGB(38, 43, 54), Color3.fromRGB(58, 66, 82))
 
 local function makeConfigBox(name, placeholder, text, position)
     local box = Instance.new("TextBox")
@@ -280,6 +352,38 @@ local function resetKnob()
     knob.Position = UDim2.new(0.5, 0, 0.5, 0)
     state.touchDir = Vector3.zero
 end
+
+local function setGuiVisible(visible)
+    if visible then
+        panel.Visible = true
+        panel.Position = PANEL_HIDDEN_POSITION
+        base.Visible = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+        openButton.Visible = false
+        TweenService:Create(panel, PANEL_TWEEN, {Position = PANEL_POSITION}):Play()
+    else
+        base.Visible = false
+        openButton.Visible = true
+        state.activeTouch = nil
+        resetKnob()
+        local hideTween = TweenService:Create(panel, PANEL_TWEEN, {Position = PANEL_HIDDEN_POSITION})
+        hideTween.Completed:Connect(function()
+            if openButton.Visible then
+                panel.Visible = false
+            end
+        end)
+        hideTween:Play()
+    end
+end
+
+local function hideGui()
+    setGuiVisible(false)
+end
+
+minimizeButton.MouseButton1Click:Connect(hideGui)
+closeButton.MouseButton1Click:Connect(hideGui)
+openButton.MouseButton1Click:Connect(function()
+    setGuiVisible(true)
+end)
 
 local function updateTouchDirection(inputPosition)
     local center = base.AbsolutePosition + (base.AbsoluteSize / 2)
@@ -378,6 +482,11 @@ end)
 
 refreshControls()
 
+task.defer(function()
+    panel.Visible = true
+    TweenService:Create(panel, PANEL_TWEEN, {Position = PANEL_POSITION}):Play()
+end)
+
 activateButton.MouseButton1Click:Connect(function()
     setEnabled(not state.enabled)
 end)
@@ -426,14 +535,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         return
     end
 
-    if input.KeyCode == Enum.KeyCode.Space and state.infiniteJump and state.enabled then
-        local character = player.Character
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end
-
     if input.KeyCode == Enum.KeyCode.I then
         pressedKeys.I = true
     elseif input.KeyCode == Enum.KeyCode.K then
@@ -445,6 +546,18 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 
     updateKeyboardDirection()
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if not state.infiniteJump or not state.enabled then
+        return
+    end
+
+    local character = player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
