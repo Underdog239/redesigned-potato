@@ -1,0 +1,178 @@
+-- LocalScript in StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+local SPEED = 40
+local clone = nil
+local moveDir = Vector3.zero
+
+-- ============================================================
+-- BUILD THE CLONE (looks exactly like you)
+-- ============================================================
+local function buildClone()
+    local char = player.Character
+    if not char or not char.PrimaryPart then return end
+    char:WaitForChild("Humanoid")
+
+    if clone then clone:Destroy() end
+
+    clone = char:Clone()
+    clone.Name = "LocalClone"
+
+    for _, d in ipairs(clone:GetDescendants()) do
+        if d:IsA("Script") or d:IsA("LocalScript") then
+            d:Destroy()
+        elseif d:IsA("BasePart") then
+            d.Anchored = false
+            d.CanCollide = false
+            d.Massless = true
+        end
+    end
+
+    local h = clone:FindFirstChildOfClass("Humanoid")
+    if h then
+        h.WalkSpeed = SPEED
+        h.JumpPower = 0
+        h.JumpHeight = 0
+        h.AutoRotate = true
+        h.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+    end
+
+    clone:PivotTo(char.PrimaryPart.CFrame * CFrame.new(4, 0, 0))
+    clone.Parent = workspace
+end
+
+-- ============================================================
+-- MOBILE UI: TOUCH JOYSTICK
+-- ============================================================
+local gui = Instance.new("ScreenGui")
+gui.Name = "CloneControls"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local base = Instance.new("Frame")
+base.Name = "JoystickBase"
+base.Size = UDim2.fromOffset(160, 160)
+base.Position = UDim2.new(0, 30, 1, -190) -- bottom-left
+base.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+base.BackgroundTransparency = 0.6
+base.BorderSizePixel = 0
+base.Visible = false
+base.Parent = gui
+Instance.new("UICorner", base).CornerRadius = UDim.new(1, 0)
+
+local knob = Instance.new("Frame")
+knob.Name = "Knob"
+knob.Size = UDim2.fromOffset(70, 70)
+knob.Position = UDim2.new(0.5, -35, 0.5, -35)
+knob.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
+knob.BackgroundTransparency = 0.15
+knob.BorderSizePixel = 0
+knob.Parent = base
+Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+-- Show joystick only on touch devices
+local isTouch = UIS.TouchEnabled and not UIS.KeyboardEnabled
+base.Visible = isTouch
+
+local activeTouch = nil
+local baseCenter = Vector2.zero
+local maxRadius = 55
+
+local function updateKnob(inputPos)
+    local delta = inputPos - baseCenter
+    if delta.Magnitude > maxRadius then
+        delta = delta.Unit * maxRadius
+    end
+    knob.Position = UDim2.new(
+        0.5, delta.X - knob.AbsoluteSize.X / 2,
+        0.5, delta.Y - knob.AbsoluteSize.Y / 2
+    )
+    if delta.Magnitude > 6 then
+        moveDir = Vector3.new(delta.X, 0, delta.Y) / maxRadius
+    else
+        moveDir = Vector3.zero
+    end
+end
+
+local function resetKnob()
+    knob.Position = UDim2.new(0.5, -35, 0.5, -35)
+    moveDir = Vector3.zero
+end
+
+base.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        activeTouch = input
+        baseCenter = base.AbsolutePosition + base.AbsoluteSize / 2
+        updateKnob(input.Position)
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input == activeTouch then
+        updateKnob(input.Position)
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input == activeTouch then
+        activeTouch = nil
+        resetKnob()
+    end
+end)
+
+-- ============================================================
+-- DESKTOP FALLBACK (IJKL) — skip if you only want mobile
+-- ============================================================
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.I then moveDir += Vector3.new(0, 0, -1) end
+    if input.KeyCode == Enum.KeyCode.K then moveDir += Vector3.new(0, 0,  1) end
+    if input.KeyCode == Enum.KeyCode.J then moveDir += Vector3.new(-1, 0, 0) end
+    if input.KeyCode == Enum.KeyCode.L then moveDir += Vector3.new( 1, 0, 0) end
+end)
+UIS.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.I then moveDir -= Vector3.new(0, 0, -1) end
+    if input.KeyCode == Enum.KeyCode.K then moveDir -= Vector3.new(0, 0,  1) end
+    if input.KeyCode == Enum.KeyCode.J then moveDir -= Vector3.new(-1, 0, 0) end
+    if input.KeyCode == Enum.KeyCode.L then moveDir -= Vector3.new( 1, 0, 0) end
+end)
+
+-- ============================================================
+-- DRIVE THE CLONE VIA HUMANOID (animations + 40 speed)
+-- ============================================================
+RunService.Heartbeat:Connect(function()
+    if not clone or not clone.PrimaryPart then return end
+    local h = clone:FindFirstChildOfClass("Humanoid")
+    if not h or h.Health <= 0 then return end
+
+    if moveDir.Magnitude > 0.1 then
+        -- Move relative to the camera so it feels natural on mobile
+        local cam = workspace.CurrentCamera
+        local camCF = cam.CFrame
+        local forward = Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z).Unit
+        local right   = Vector3.new(camCF.RightVector.X, 0, camCF.RightVector.Z).Unit
+        local worldDir = (forward * -moveDir.Z + right * moveDir.X)
+        if worldDir.Magnitude > 0 then
+            worldDir = worldDir.Unit
+        end
+
+        local target = clone.PrimaryPart.Position + worldDir * 8
+        h:MoveTo(target)
+    else
+        h:MoveTo(clone.PrimaryPart.Position)
+    end
+end)
+
+-- ============================================================
+-- RESPAWN HANDLING
+-- ============================================================
+player.CharacterAdded:Connect(function()
+    task.wait(0.2)
+    buildClone()
+end)
+if player.Character then buildClone() end
